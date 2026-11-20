@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blissbiz-agent"
+version = "0.1.0"
+description = "BlissBiz agent service: voice and chat assistants, insights and recommendations"
+requires-python = ">=3.11,<3.14"
+dependencies = ["blissbiz-common", "blissbiz-backend", "uvicorn[standard]>=0.34,<1"]
+
+[tool.setuptools.packages.find]
+include = ["agent_service*"]
+
+[tool.setuptools.package-data]
+agent_service = ["knowledge/*.md"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120  # answer templates, regexes and SQL read better unwrapped
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"agent_service/guard.py" = ["E501"]  # long regex alternations
+"agent_service/rules.py" = ["E501"]  # ported rule texts
+"agent_service/metrics.py" = ["E501"]

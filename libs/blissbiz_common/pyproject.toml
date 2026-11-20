@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blissbiz-common"
+version = "0.1.0"
+description = "Shared library for BlissBiz services: config, errors, logging, signed internal calls"
+requires-python = ">=3.11,<3.14"
+dependencies = ["fastapi>=0.115,<1", "pydantic-settings>=2.7,<3", "httpx>=0.28,<1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]
+
+[tool.setuptools.packages.find]
+include = ["blissbiz_common*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

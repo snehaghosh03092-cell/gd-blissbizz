@@ -1,0 +1,27 @@
+.DS_Store
+.idea/
+.tools/
+.env
+.env.*
+!.env.example
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.pytest_cache/
+**/.ruff_cache/
+**/node_modules/
+frontend/dist/
+backend/uploads/
+
+var/
+
+# Server-only release secrets and certificates
+deploy/release.env
+deploy/tls/
+# Server-only generated demo credentials.
+deploy/demo-private/
+
+# Migrations are not pushed (see SETUP.md)
+backend/migrations/
+.venv-check/

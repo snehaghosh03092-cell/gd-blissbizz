@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blissbiz-gateway"
+version = "0.1.0"
+description = "BlissBiz gateway: the only public entry point"
+requires-python = ">=3.11,<3.14"
+dependencies = ["blissbiz-common", "uvicorn[standard]>=0.34,<1"]
+
+[tool.setuptools.packages.find]
+include = ["gateway_service*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

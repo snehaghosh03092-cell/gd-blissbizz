@@ -1,0 +1,140 @@
+# Separate from the legacy blissbiz-vps project. Default bindings are PRIVATE preview ports.
+x-logging: &logging
+  driver: json-file
+  options: {max-size: 10m, max-file: '3'}
+x-environment: &environment
+  APP_ENV: production
+  DATABASE_URL: mysql+pymysql://blissbiz:${MYSQL_PASSWORD:?Initialize release.env}@db:3306/blissbiz_next?charset=utf8mb4
+  INTERNAL_SIGNING_SECRET: ${INTERNAL_SIGNING_SECRET:?Initialize release.env}
+  BASE_DOMAIN: blissbiz.biz
+  STOREFRONT_BASE_URL: https://blissbiz.biz
+  ADMIN_BASE_URL: https://admin.blissbiz.biz
+  AUTH_ALLOWED_ORIGINS: '["https://blissbiz.biz","https://admin.blissbiz.biz","https://platform.blissbiz.biz"]'
+  ALLOWED_ORIGINS: '["https://blissbiz.biz","https://admin.blissbiz.biz","https://platform.blissbiz.biz"]'
+  IDENTITY_URL: http://identity:8000
+  STORE_URL: http://store:8000
+  CATALOG_URL: http://catalog:8000
+  SUPPLY_URL: http://supply:8000
+  SALES_URL: http://sales:8000
+  BILLING_URL: http://billing:8000
+  AGENT_URL: http://agent:8000
+  UPLOAD_DIR: /data/uploads
+  # Preserve demo history until the operator explicitly enables the expiry worker.
+  SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-0}
+x-service: &service
+  image: blissbiz-services:${RELEASE_TAG:?Initialize release.env}
+  restart: unless-stopped
+  environment: *environment
+  depends_on:
+    db: {condition: service_healthy}
+  volumes: [uploads:/data/uploads]
+  healthcheck:
+    test: [CMD, python3, /opt/blissbiz/healthcheck.py]
+    interval: 15s
+    timeout: 12s
+    retries: 8
+    start_period: 20s
+  logging: *logging
+
+services:
+  db:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: unless-stopped
+    # Dedicated demo database: logical backups, no binary logs/PITR. This allows the migration
+    # user to create immutable-ledger triggers without remote root or SUPER privileges.
+    command: [--skip-log-bin]
+    environment:
+      MYSQL_DATABASE: blissbiz_next
+      MYSQL_USER: blissbiz
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Initialize release.env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Initialize release.env}
+    volumes: [database:/var/lib/mysql]
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql --protocol=TCP -h 127.0.0.1 -u"$$MYSQL_USER" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+    logging: *logging
+
+  migrate:
+    <<: *service
+    profiles: [tools]
+    restart: 'no'
+    build:
+      context: ..
+      dockerfile: deploy/services.Dockerfile
+      args: {PYTHON_IMAGE: '${PYTHON_IMAGE:-python:3.13-slim}'}
+    command: [python3, -m, alembic, upgrade, head]
+    healthcheck: {disable: true}
+
+  identity:
+    <<: *service
+    command: [python3, -m, uvicorn, 'identity_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  store:
+    <<: *service
+    command: [python3, -m, uvicorn, 'store_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  catalog:
+    <<: *service
+    command: [python3, -m, uvicorn, 'catalog_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  supply:
+    <<: *service
+    command: [python3, -m, uvicorn, 'supply_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  sales:
+    <<: *service
+    command: [python3, -m, uvicorn, 'sales_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  billing:
+    <<: *service
+    command: [python3, -m, uvicorn, 'billing_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  agent:
+    <<: *service
+    environment:
+      <<: *environment
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-claude-haiku-5-5}
+      GUIDE_MODEL: ${GUIDE_MODEL:-claude-sonnet-5-5}
+    command: [python3, -m, uvicorn, 'agent_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+  gateway:
+    <<: *service
+    command: [python3, -m, uvicorn, 'gateway_service.main:app', --host, 0.0.0.0, --port, '8000', --no-proxy-headers]
+    depends_on:
+      identity: {condition: service_healthy}
+      store: {condition: service_healthy}
+      catalog: {condition: service_healthy}
+      supply: {condition: service_healthy}
+      sales: {condition: service_healthy}
+      billing: {condition: service_healthy}
+      agent: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python3, /opt/blissbiz/healthcheck.py, gateway]
+      interval: 15s
+      timeout: 40s
+      retries: 8
+      start_period: 30s
+
+  proxy:
+    image: blissbiz-frontend:${RELEASE_TAG:?Initialize release.env}
+    build:
+      context: ..
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        BASE_DOMAIN: blissbiz.biz
+        NODE_IMAGE: ${NODE_IMAGE:-node:24-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:stable-alpine}
+    restart: unless-stopped
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-18080}:80'
+      - '${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-18443}:443'
+    volumes:
+      - type: bind
+        source: ${TLS_DIR:?Set the existing certificate directory in release.env}
+        target: /tls
+        read_only: true
+        bind: {create_host_path: false}
+    depends_on:
+      gateway: {condition: service_healthy}
+    logging: *logging
+
+volumes:
+  database:
+  uploads:

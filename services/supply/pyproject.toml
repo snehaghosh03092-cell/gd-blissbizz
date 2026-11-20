@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blissbiz-supply"
+version = "0.1.0"
+description = "BlissBiz supply service: stock ledger, balances and warehouses"
+requires-python = ">=3.11,<3.14"
+dependencies = ["blissbiz-common", "blissbiz-backend", "uvicorn[standard]>=0.34,<1"]
+
+[tool.setuptools.packages.find]
+include = ["supply_service*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
