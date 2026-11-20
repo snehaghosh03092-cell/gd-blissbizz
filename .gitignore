@@ -25,3 +25,4 @@ deploy/demo-private/
 # Migrations are not pushed (see SETUP.md)
 backend/migrations/
 .venv-check/
+docs/

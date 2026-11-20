@@ -50,7 +50,7 @@ make dev-frontend   # UI on http://127.0.0.1:5173 (owner) and http://threads-co.
 
 Port 8000 busy? `GATEWAY_PORT=8010 make dev-all` and the same for `make dev-frontend`.
 
-Demo logins (dev password is in `docs/13-seed-data.md`): `owner@threads-co.example`, `platform@blissbiz.example`, shopper `aarav.bhatt86@example.com`.
+Demo logins (dev seed password is defined in `backend/app/seed/`): `owner@threads-co.example`, `platform@blissbiz.example`, shopper `aarav.bhatt86@example.com`.
 
 Health checks: `http://127.0.0.1:8000/api/health`, agent `http://127.0.0.1:8107/health` (shows `llm`, `chat_model`, `guide_model`).
 
@@ -78,5 +78,5 @@ libs/       blissbiz_common shared library
 frontend/   Vue 3 + Vite
 deploy/     production compose, Dockerfiles, nginx
 scripts/    setup, dev runner, smoke tests
-docs/       architecture and seed-data reference
+
 ```
